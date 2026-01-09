@@ -1,0 +1,167 @@
+import java.util.ArrayList;
+import java.util.*;
+import java.io.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+/**
+ *
+ * @author noraz
+ */
+
+
+// For "Stock Information" [cite: 146]
+class Product {
+    String modelName;
+    double unitPrice;
+    int klcc, midValley, lalaport, klEast, nuSentral, pavillion, myTown; // Outlets 
+
+    public Product(String modelName, double unitPrice, int[] stocks) {
+        this.modelName = modelName;
+        this.unitPrice = unitPrice;
+        this.klcc = stocks[0];
+        this.midValley = stocks[1];
+        this.lalaport = stocks[2];
+        this.klEast = stocks[3];
+        this.nuSentral = stocks[4];
+        this.pavillion = stocks[5];
+        this.myTown = stocks[6];
+    }
+}
+
+
+
+public class SalesSystemManager {
+    private ArrayList<Product> inventory = new ArrayList<>();
+    private ArrayList<SaleRecord> salesHistory = new ArrayList<>();
+    private String currentEmployee = "Tan Guan Han"; // This would come from your Login module [cite: 120]
+
+    public static void main(String[] args) {
+        SalesSystemManager manager = new SalesSystemManager();
+        manager.setupDummyData(); // In real project, load from CSV here 
+        manager.runMenu();
+    }
+
+    public void runMenu() {
+        Scanner sc = new Scanner(System.in);
+        boolean backToMenu = false;
+        while (!backToMenu) {
+        System.out.println("\n=== Search Information ===");
+            System.out.println("1. Search Stock Information");
+            System.out.println("2. Search Sales Information");
+            System.out.println("3. Record New Sales Information");
+            System.out.println("4. Back to Main Menu");
+            System.out.print("> ");
+            int choice = sc.nextInt();
+            sc.nextLine(); // consume newline
+
+            switch (choice) {
+                case 1:
+                    searchStock(sc);
+                    break;
+                case 2:
+                    searchSales(sc);
+                    break;
+                case 3:
+                    recordSale (sc);
+                    break;
+                case 4:
+                    backToMenu = true;
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    // --- MODULE: SALES SYSTEM [cite: 118] ---
+    public void recordSale(Scanner sc) {
+        
+        System.out.print("Customer Name: ");
+        String customer = sc.nextLine();
+        System.out.print("Enter Model: ");
+        String model = sc.nextLine();
+        System.out.print("Enter Quantity: ");
+        int qty = sc.nextInt();
+        sc.nextLine();
+
+        Product p = findProduct(model);
+        if (p != null && p.klcc >= qty) { // Assuming current outlet is KLCC
+            double total = p.unitPrice * qty;
+            p.klcc -= qty; // Update stock [cite: 126]
+
+            System.out.print("Enter transaction method: ");
+            String method = sc.nextLine();
+
+            // Auto-capture Date and Time [cite: 120, 130, 131]
+            String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("hh:mm a"));
+
+            SaleRecord newSale = new SaleRecord(date, time, customer, model, qty, total, method, currentEmployee);
+            salesHistory.add(newSale);
+
+            generateReceipt(newSale); // Save to File [cite: 126]
+            System.out.println("Transaction successful!");
+            
+        }
+    }
+        
+
+    // --- MODULE: SEARCH INFORMATION [cite: 144] ---
+    public void searchStock(Scanner sc) {
+        System.out.print("Search Model Name: ");
+        String keyword = sc.nextLine();
+        for (Product p : inventory) {
+            if (p.modelName.equalsIgnoreCase(keyword)) { // Linear Search [cite: 13, 151]
+                System.out.println("Model: " + p.modelName + " | Price: RM" + p.unitPrice);
+                System.out.println("Stock - KLCC: " + p.klcc + " MidValley: " + p.midValley); // etc. 
+                return;
+            }
+        }
+        System.out.println("Product not found.");
+    }
+
+    public void searchSales(Scanner sc) {
+        boolean found = false;
+        System.out.print("Search keyword (Date/Customer/Model): ");
+        String key = sc.nextLine().toLowerCase();
+        for (SaleRecord s : salesHistory) {
+            // Search by multiple fields [cite: 149]
+            if (s.customerName.toLowerCase().contains(key) || s.modelName.toLowerCase().contains(key) || s.date.contains(key)) {
+                System.out.println("Found Sale: " + s.customerName + " bought " + s.modelName + " on " + s.date);
+                found = true;
+            }
+        }
+            if (!found) {
+        System.out.println("No records match '" + key + "'.");
+            }
+    }
+
+    // --- FILE HANDLING [cite: 10, 128] ---
+    private void generateReceipt(SaleRecord s) {
+        String fileName = "sales_" + s.date + ".txt";
+        try (PrintWriter out = new PrintWriter(new FileWriter(fileName, true))) { // 'true' to append [cite: 128]
+            out.println("=== Receipt ===");
+            out.println("Date: " + s.date + " Time: " + s.time);
+            out.println("Customer: " + s.customerName);
+            out.println("Item: " + s.modelName + " x" + s.quantity);
+            out.println("Total: RM" + s.total);
+            out.println("Employee: " + s.employee);
+            out.println("---------------------------");
+        } catch (IOException e) {
+            System.out.println("Error saving receipt.");
+        }
+    }
+
+    private Product findProduct(String name) {
+        for (Product p : inventory) {
+            if (p.modelName.equalsIgnoreCase(name)) return p;
+        }
+        return null;
+    }
+
+    public void setupDummyData() {
+        inventory.add(new Product("SW2500-1", 845.0, new int[]{10, 5, 3, 2, 4, 6, 8}));
+        inventory.add(new Product("DW2300-4", 349.0, new int[]{1, 1, 3, 1, 2, 2, 1}));
+    }
+}
